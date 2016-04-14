@@ -440,4 +440,37 @@ public class DesEncryption {
         return output;
     }
 
+    public static int[] desDescrypt(int[] ciphertext, int[] key){
+        int[] init_replacement_array = initReplacement(ciphertext);
+        int[] replace_selection_1 = replaceSelection1(key);
+        int[] result_array = new int[64];
+        int[] l = new int[32];
+        int[] r = new int[32];
+        int[] c = new int[28];
+        int[] d = new int[28];
+        for(int i = 0; i < l.length; i++){
+            l[i] = init_replacement_array[i];
+            r[i] = init_replacement_array[i + 32];
+        }
+        for(int i = 0; i < c.length; i++){
+            c[i] = replace_selection_1[i];
+            d[i] = replace_selection_1[i + 28];
+        }
+        for(int j = 16; j >= 1; j--){
+            Map<String, int[]> result_map = roundFunction(l, r, c, d, j);
+            l = result_map.get("l");
+            r = result_map.get("r");
+            c = result_map.get("c");
+            d = result_map.get("d");
+        }
+        for(int i = 0; i < r.length; i++){
+            result_array[i] = r[i];
+        }
+        for(int i = 0; i < l.length; i++){
+            result_array[32 + i] = l[i];
+        }
+        int[] output = inverseInitReplacement(result_array);
+        return output;
+    }
+
 }
