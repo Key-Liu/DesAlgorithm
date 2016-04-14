@@ -1,3 +1,8 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /**
  * Created by ljkey on 2016/3/29.
  */
@@ -98,7 +103,7 @@ public class DesEncryption {
             {49, 50, 51, 52, 53, 54, 55, 56},
             {57, 58, 59, 60, 61, 62, 63, 64}
     };
-    private static final byte[][] INVERSE_TABLE1 = {
+    private static final byte[][] REPLACE_SELECTION_TABLE1 = {
             {57, 49, 41, 33, 25, 17, 9},
             {1, 58, 50, 42, 34, 26, 18},
             {10, 2, 59, 51, 43, 35, 27},
@@ -108,7 +113,7 @@ public class DesEncryption {
             {14, 6, 61, 53, 45, 37, 29},
             {21, 13, 5, 28, 20, 12, 4}
     };
-    private static final byte[][] INVERSE_TABLE2 = {
+    private static final byte[][] REPLACE_SELECTION_TABLE2 = {
             {14, 17, 11, 24, 1, 5, 3, 28},
             {15, 6, 21, 10, 23, 19, 12, 4},
             {26, 8, 16, 7, 27, 20, 13, 2},
@@ -120,35 +125,319 @@ public class DesEncryption {
             1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1
     };
 
-    public static String initReplacement(String plaintext){
-        byte[] plaintext_array = plaintext.getBytes();
-        byte[] plaintext_ip_array = new byte[64];
+    /**
+     * 明文初始替换
+     * @param plaintext 明文
+     * @return
+     */
+    public static int[] initReplacement(int[] plaintext){
+        int[] plaintext_ip_array = new int[64];
         int k = 0;
         for(int i = 0; i < IP_TABLE.length; i++){
-            for(int j = 0; j < IP_TABLE[i].length; i++){
-                plaintext_ip_array[k] = plaintext_array[IP_TABLE[i][j]];
+            for(int j = 0; j < IP_TABLE[i].length; j++){
+                plaintext_ip_array[k] = plaintext[IP_TABLE[i][j] - 1];
                 k++;
             }
         }
-        return new String(plaintext_ip_array);
+        return plaintext_ip_array;
     }
 
-    public static String keyGenerate(String key){
-        byte[] key_array = key.getBytes();
-        byte[] key_selection = new byte[56];
+    public static int[] inverseInitReplacement(int[] input){
+        int[] output = new int[64];
         int k = 0;
-        for(int i = 0; i < KEY_TABLE.length; i++){
-            for(int j = 0; j < KEY_TABLE[i].length; j++){
-                if(KEY_TABLE[i][j] % 8 != 0){
-                    key_selection[k] = key_array[KEY_TABLE[i][j]];
-                    k++;
-                }
+        for(int i = 0; i < IP_INVERSE_TABLE.length; i++){
+            for(int j = 0; j < IP_INVERSE_TABLE[i].length; j++){
+                output[k] = input[IP_INVERSE_TABLE[i][j] - 1];
+                k++;
             }
         }
-        return new String(key_selection);
+        return output;
     }
 
+//    /**
+//     * 从64位密钥中生成56位密钥
+//     * @param key 64位密钥
+//     * @return 56位密钥
+//     */
+//    public static int[] keyGenerate(int[] key){
+//        int[] key_selection = new int[56];
+//        int k = 0;
+//        for(int i = 0; i < KEY_TABLE.length; i++){
+//            for(int j = 0; j < KEY_TABLE[i].length; j++){
+//                if(KEY_TABLE[i][j] % 8 != 0){
+//                    key_selection[k] = key[KEY_TABLE[i][j] - 1];
+//                    k++;
+//                }
+//            }
+//        }
+//        return key_selection;
+//    }
 
+    /**
+     * 密钥的置换选择1
+     * @param generateKey 56位密钥
+     * @return
+     */
+    public static int[] replaceSelection1(int[] generateKey){
+        int[] generateKey_replace_selection_array = new int[56];
+        int k = 0;
+        for(int i = 0; i < REPLACE_SELECTION_TABLE1.length; i++){
+            for(int j = 0; j < REPLACE_SELECTION_TABLE1[i].length; j++){
+                generateKey_replace_selection_array[k] = generateKey[REPLACE_SELECTION_TABLE1[i][j] - 1];
+                k++;
+            }
+        }
+        return generateKey_replace_selection_array;
+    }
 
+    /**
+     * 密钥的循环移位操作
+     * @param c 56位密钥左边28位
+     * @param d 56位密钥右边28位
+     * @param round 轮次
+     * @return
+     */
+    public static int[] leftShiftOperation(int[] c, int[] d, int round){
+        int[] c_left_shift_array = new int[28];
+        int[] d_left_shift_array = new int[28];
+        int[] key_left_shift_array = new int[56];
+        //移位次数
+        int count = CYCLE_SHIFT_TABLE[round - 1];
+        for(int i = 0; i < c.length; i++){
+            c_left_shift_array[(i + 28 - count) % 28] = c[i];
+            d_left_shift_array[(i + 28 - count) % 28] = d[i];
+        }
+        for(int i = 0; i < c_left_shift_array.length; i++){
+            key_left_shift_array[i] = c_left_shift_array[i];
+        }
+        for(int j = 0; j < d_left_shift_array.length; j++){
+            key_left_shift_array[28 + j] = d_left_shift_array[j];
+        }
+        return key_left_shift_array;
+    }
+
+    /**
+     * 密钥的置换选择2
+     * @param key 56位密钥
+     * @return 48位密钥
+     */
+    public static int[] replaceSelection2(int[] key){
+        int[] key_replace_selection_array = new int[48];
+        int k = 0;
+        for(int i = 0; i < REPLACE_SELECTION_TABLE2.length; i++){
+            for(int j = 0; j < REPLACE_SELECTION_TABLE2[i].length; j++){
+                key_replace_selection_array[k] = key[REPLACE_SELECTION_TABLE2[i][j] - 1];
+                k++;
+            }
+        }
+        return key_replace_selection_array;
+    }
+
+    /**
+     * 将r进行扩充置换成48位
+     * @param r 32位数组
+     * @return
+     */
+    public static int[] expandReplace(int[] r){
+        int[] r_expand_replace_array = new int[48];
+        int k = 0;
+        for(int i = 0; i < E_TABLE.length; i++){
+            for(int j = 0; j < E_TABLE[i].length; j++){
+                r_expand_replace_array[k] = r[E_TABLE[i][j] - 1];
+                k++;
+            }
+        }
+        return r_expand_replace_array;
+    }
+
+    /**
+     * 异或操作
+     * @param r
+     * @param k
+     * @return
+     */
+    public static int[] exclusiveOr(int[] r, int[] k){
+        int[] result = new int[r.length];
+        for(int i = 0; i < r.length; i++){
+            result[i] = r[i] ^ k[i];
+        }
+        return result;
+    }
+
+    /**
+     * 代换选择(S盒)函数
+     * @param input
+     * @return
+     */
+    public static int[] sFunction(int[] input){
+        int[][] s = new int[8][6];
+        int[] result = new int[32];
+        int k = 0;
+        for(int i = 0; i < input.length; i++){
+            if(i / 6 == 0){
+                s[0][i] = input[i];
+            }else if(i / 6 == 1){
+                s[1][i - 6] = input[i];
+            }else if(i / 6 == 2){
+                s[2][i - 12] = input[i];
+            }else if(i / 6 == 3){
+                s[3][i - 18] = input[i];
+            }else if(i / 6 == 4){
+                s[4][i - 24] = input[i];
+            }else if(i / 6 == 5){
+                s[5][i - 30] = input[i];
+            }else if(i / 6 == 6){
+                s[6][i - 36] = input[i];
+            }else {
+                s[7][i - 42] = input[i];
+            }
+        }
+        for(int i = 0; i < s.length; i++){
+            StringBuilder row_sb = new StringBuilder();
+            StringBuilder col_sb = new StringBuilder();
+            row_sb.append(s[i][0]);
+            row_sb.append(s[i][5]);
+            for(int j = 0; j < 4; j++){
+                col_sb.append(s[i][j + 1]);
+            }
+            String row_string = row_sb.toString();
+            String col_string = col_sb.toString();
+            // 二进制转十进制
+            int row = Integer.valueOf(row_string, 2);
+            int col = Integer.valueOf(col_string, 2);
+            int number = 0;
+            if(i == 0){
+                number = S1_TABLE[row][col];
+            }else if (i == 1){
+                number = S2_TABLE[row][col];
+            }else if (i == 2){
+                number = S3_TABLE[row][col];
+            }else if (i == 3){
+                number = S4_TABLE[row][col];
+            }else if (i == 4){
+                number = S5_TABLE[row][col];
+            }else if (i == 5){
+                number = S6_TABLE[row][col];
+            }else if (i == 6){
+                number = S7_TABLE[row][col];
+            }else if (i == 7){
+                number = S8_TABLE[row][col];
+            }
+            // 十进制转二进制
+            String binary_number = Integer.toBinaryString(number);
+            if(binary_number.length() != 4){
+                int need_length = 4 - binary_number.length();
+                StringBuilder bnsb = new StringBuilder();
+                for(int l = 0; l < need_length; l++){
+                    bnsb.append("0");
+                }
+                bnsb.append(binary_number);
+                binary_number = bnsb.toString();
+            }
+            for(int l = 0; l < binary_number.length(); l++){
+                result[k] = Integer.parseInt(String.valueOf(binary_number.charAt(l)));
+                k++;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 置换选择P函数
+     * @param input
+     * @return
+     */
+    public static int[] replaceSelectionP(int[] input){
+        int[] output = new int[32];
+        int k = 0;
+        for(int i = 0; i < P_TABLE.length; i++){
+            for(int j = 0; j < P_TABLE[i].length; j++){
+                output[k] = input[P_TABLE[i][j] - 1];
+                k++;
+            }
+        }
+        return output;
+    }
+
+    /**
+     * f函数
+     * @param r
+     * @param k
+     * @return
+     */
+    public static int[] fFunction(int[] r, int[] k){
+        int[] r_expand_replace_array = expandReplace(r);
+        int[] s_input = exclusiveOr(r_expand_replace_array, k);
+        int[] s_output = sFunction(s_input);
+        int[] p_output = replaceSelectionP(s_output);
+        return p_output;
+    }
+
+    /**
+     * 每轮置换选择函数
+     * @param l
+     * @param r
+     * @param c
+     * @param d
+     * @param round
+     * @return
+     */
+    public static Map<String, int[]> roundFunction(int[] l, int[] r, int[] c, int[] d, int round){
+        Map<String, int[]> result_map = new HashMap<>();
+        result_map.put("l", r);
+        int[] left_shift_result = leftShiftOperation(c, d, round);
+        for(int i = 0; i < c.length; i++){
+            c[i] = left_shift_result[i];
+        }
+        for(int i = 0; i < d.length; i++){
+            d[i] = left_shift_result[28 + i];
+        }
+        result_map.put("c", c);
+        result_map.put("d", d);
+        int[] replace_selection2_result = replaceSelection2(left_shift_result);
+        int[] f_output = fFunction(r, replace_selection2_result);
+        r = exclusiveOr(l, f_output);
+        result_map.put("r", r);
+        return result_map;
+    }
+
+    /**
+     * DES加密
+     * @param plaintext 明文
+     * @param key 密文
+     * @return
+     */
+    public static int[] desEncrypt(int[] plaintext, int[] key){
+        int[] init_replacement_array = initReplacement(plaintext);
+        int[] replace_selection_1 = replaceSelection1(key);
+        int[] result_array = new int[64];
+        int[] l = new int[32];
+        int[] r = new int[32];
+        int[] c = new int[28];
+        int[] d = new int[28];
+        for(int i = 0; i < l.length; i++){
+            l[i] = init_replacement_array[i];
+            r[i] = init_replacement_array[i + 32];
+        }
+        for(int i = 0; i < c.length; i++){
+            c[i] = replace_selection_1[i];
+            d[i] = replace_selection_1[i + 28];
+        }
+        for(int j = 1; j <= 16; j++){
+            Map<String, int[]> result_map = roundFunction(l, r, c, d, j);
+            l = result_map.get("l");
+            r = result_map.get("r");
+            c = result_map.get("c");
+            d = result_map.get("d");
+        }
+        for(int i = 0; i < r.length; i++){
+            result_array[i] = r[i];
+        }
+        for(int i = 0; i < l.length; i++){
+            result_array[32 + i] = l[i];
+        }
+        int[] output = inverseInitReplacement(result_array);
+        return output;
+    }
 
 }
