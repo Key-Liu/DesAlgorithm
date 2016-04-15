@@ -4,7 +4,7 @@ import java.util.Map;
 /**
  * Created by ljkey on 2016/3/29.
  */
-public class DesEncryptionAndDescryption {
+public class DesAlgorithm {
     private static final byte[][] IP_TABLE = {
             {58, 50, 42, 34, 26, 18, 10, 2},
             {60, 52, 44, 36, 28, 20, 12, 4},
@@ -431,7 +431,7 @@ public class DesEncryptionAndDescryption {
      * @param key 密钥
      * @return
      */
-    public static int[] desDescrypt(int[] ciphertext, int[] key){
+    public static int[] desDecrypt(int[] ciphertext, int[] key){
         int[] init_replacement_array = initReplacement(ciphertext);
         int[] result_array = new int[64];
         int[][] key_generate = generateKey(key);
