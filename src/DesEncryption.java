@@ -140,6 +140,11 @@ public class DesEncryption {
         return plaintext_ip_array;
     }
 
+    /**
+     * 逆初始替换
+     * @param input 16轮迭代结果
+     * @return 密文
+     */
     public static int[] inverseInitReplacement(int[] input){
         int[] output = new int[64];
         int k = 0;
@@ -213,7 +218,7 @@ public class DesEncryption {
     /**
      * 将r进行扩充置换成48位
      * @param r 32位数组
-     * @return
+     * @return 48位数组
      */
     public static int[] expandReplace(int[] r){
         int[] r_expand_replace_array = new int[48];
