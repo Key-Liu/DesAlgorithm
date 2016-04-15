@@ -1,6 +1,4 @@
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -154,25 +152,6 @@ public class DesEncryption {
         return output;
     }
 
-//    /**
-//     * 从64位密钥中生成56位密钥
-//     * @param key 64位密钥
-//     * @return 56位密钥
-//     */
-//    public static int[] keyGenerate(int[] key){
-//        int[] key_selection = new int[56];
-//        int k = 0;
-//        for(int i = 0; i < KEY_TABLE.length; i++){
-//            for(int j = 0; j < KEY_TABLE[i].length; j++){
-//                if(KEY_TABLE[i][j] % 8 != 0){
-//                    key_selection[k] = key[KEY_TABLE[i][j] - 1];
-//                    k++;
-//                }
-//            }
-//        }
-//        return key_selection;
-//    }
-
     /**
      * 密钥的置换选择1
      * @param generateKey 56位密钥
@@ -209,9 +188,7 @@ public class DesEncryption {
         }
         for(int i = 0; i < c_left_shift_array.length; i++){
             key_left_shift_array[i] = c_left_shift_array[i];
-        }
-        for(int j = 0; j < d_left_shift_array.length; j++){
-            key_left_shift_array[28 + j] = d_left_shift_array[j];
+            key_left_shift_array[28 + i] = d_left_shift_array[i];
         }
         return key_left_shift_array;
     }
@@ -374,30 +351,43 @@ public class DesEncryption {
     }
 
     /**
-     * 每轮置换选择函数
+     * 生成十六轮次所需要的密钥
+     * @param key 64位密钥
+     * @return
+     */
+    public static int[][] generateKey(int[] key){
+        int[][] key_generate = new int[16][48];
+        int[] replace_selection1_array = replaceSelection1(key);
+        int[] c = new int[28];
+        int[] d = new int[28];
+        for(int i = 0; i < c.length; i++){
+            c[i] = replace_selection1_array[i];
+            d[i] = replace_selection1_array[28 + i];
+        }
+        for(int i = 1; i <= 16; i++){
+            int[] left_shift_result = leftShiftOperation(c, d, i);
+            int[] replace_selection2_array = replaceSelection2(left_shift_result);
+            key_generate[i - 1] = replace_selection2_array;
+            for(int j = 0; j < c.length; j++){
+                c[i] = left_shift_result[i];
+                d[i] = left_shift_result[28 + i];
+            }
+        }
+        return key_generate;
+    }
+
+    /**
+     * 每轮函数操作
      * @param l
      * @param r
-     * @param c
-     * @param d
+     * @param key_generate
      * @param round
      * @return
      */
-    public static Map<String, int[]> roundFunction(int[] l, int[] r, int[] c, int[] d, int round){
+    public static Map<String, int[]> roundFunction(int[] l, int[] r, int[][] key_generate, int round){
         Map<String, int[]> result_map = new HashMap<>();
         result_map.put("l", r);
-        int[] left_shift_result = leftShiftOperation(c, d, round);
-        for(int i = 0; i < c.length; i++){
-            c[i] = left_shift_result[i];
-        }
-        for(int i = 0; i < d.length; i++){
-            d[i] = left_shift_result[28 + i];
-        }
-        result_map.put("c", c);
-        result_map.put("d", d);
-        int[] replace_selection2_result = replaceSelection2(left_shift_result);
-        int[] f_output = fFunction(r, replace_selection2_result);
-        r = exclusiveOr(l, f_output);
-        result_map.put("r", r);
+        result_map.put("r", exclusiveOr(l, fFunction(r, key_generate[round - 1])));
         return result_map;
     }
 
@@ -409,64 +399,50 @@ public class DesEncryption {
      */
     public static int[] desEncrypt(int[] plaintext, int[] key){
         int[] init_replacement_array = initReplacement(plaintext);
-        int[] replace_selection_1 = replaceSelection1(key);
         int[] result_array = new int[64];
+        int[][] key_generate = generateKey(key);
         int[] l = new int[32];
         int[] r = new int[32];
-        int[] c = new int[28];
-        int[] d = new int[28];
         for(int i = 0; i < l.length; i++){
             l[i] = init_replacement_array[i];
             r[i] = init_replacement_array[i + 32];
         }
-        for(int i = 0; i < c.length; i++){
-            c[i] = replace_selection_1[i];
-            d[i] = replace_selection_1[i + 28];
-        }
         for(int j = 1; j <= 16; j++){
-            Map<String, int[]> result_map = roundFunction(l, r, c, d, j);
+            Map<String, int[]> result_map = roundFunction(l, r, key_generate, j);
             l = result_map.get("l");
             r = result_map.get("r");
-            c = result_map.get("c");
-            d = result_map.get("d");
         }
         for(int i = 0; i < r.length; i++){
             result_array[i] = r[i];
-        }
-        for(int i = 0; i < l.length; i++){
             result_array[32 + i] = l[i];
         }
         int[] output = inverseInitReplacement(result_array);
         return output;
     }
 
+    /**
+     * DES解密
+     * @param ciphertext 密文
+     * @param key 密钥
+     * @return
+     */
     public static int[] desDescrypt(int[] ciphertext, int[] key){
         int[] init_replacement_array = initReplacement(ciphertext);
-        int[] replace_selection_1 = replaceSelection1(key);
         int[] result_array = new int[64];
+        int[][] key_generate = generateKey(key);
         int[] l = new int[32];
         int[] r = new int[32];
-        int[] c = new int[28];
-        int[] d = new int[28];
         for(int i = 0; i < l.length; i++){
             l[i] = init_replacement_array[i];
             r[i] = init_replacement_array[i + 32];
         }
-        for(int i = 0; i < c.length; i++){
-            c[i] = replace_selection_1[i];
-            d[i] = replace_selection_1[i + 28];
-        }
         for(int j = 16; j >= 1; j--){
-            Map<String, int[]> result_map = roundFunction(l, r, c, d, j);
+            Map<String, int[]> result_map = roundFunction(l, r, key_generate, j);
             l = result_map.get("l");
             r = result_map.get("r");
-            c = result_map.get("c");
-            d = result_map.get("d");
         }
         for(int i = 0; i < r.length; i++){
             result_array[i] = r[i];
-        }
-        for(int i = 0; i < l.length; i++){
             result_array[32 + i] = l[i];
         }
         int[] output = inverseInitReplacement(result_array);
