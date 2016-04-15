@@ -4,7 +4,7 @@ import java.util.Map;
 /**
  * Created by ljkey on 2016/3/29.
  */
-public class DesEncryption {
+public class DesEncryptionAndDescryption {
     private static final byte[][] IP_TABLE = {
             {58, 50, 42, 34, 26, 18, 10, 2},
             {60, 52, 44, 36, 28, 20, 12, 4},
